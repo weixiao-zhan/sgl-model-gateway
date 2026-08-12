@@ -1,0 +1,28 @@
+SGL Model Gateway — slim fork
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository contains code from two upstream sources, both Apache-2.0:
+
+1. The gateway, from the SGLang project (https://github.com/sgl-project/sglang),
+   directory `sgl-model-gateway/` at tag v0.5.15.post1.
+2. `crates/openai-protocol`, from the crates.io package `openai-protocol` 1.0.0,
+   published by the same maintainers.
+
+Modifications made in this fork, as required by Apache-2.0 section 4(b):
+
+- `crates/openai-protocol/src/generate.rs`: declared the SGLang `/generate` fields
+  `return_routed_experts`, `routed_experts_start_len`, `return_prompt_token_ids` and
+  `return_processor_outputs`.
+- `crates/openai-protocol/src/chat.rs`: declared the SGLang `/v1/chat/completions`
+  fields `return_prompt_token_ids`, `return_meta_info`, `return_routed_experts`,
+  `routed_experts_start_len`, `return_cached_tokens_details` and
+  `return_processor_outputs`.
+- `crates/openai-protocol/src/common.rs`: tool call `arguments` accepts a JSON object
+  in addition to the OpenAI JSON string.
+- `Cargo.toml`: workspace member and `[patch.crates-io]` entry for the in-tree
+  `openai-protocol`.
+- `LICENSE`: replaced the monorepo-relative symlink with the license text.
+- Tests and benches updated for the added fields; the wheel version carries a
+  `.post<n>` suffix marking this fork's patch revision.
+
+See FORK.md for the full rationale and the upstream resync procedure.

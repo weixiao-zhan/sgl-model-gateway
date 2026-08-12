@@ -356,6 +356,32 @@ pub struct ChatCompletionRequest {
     #[serde(default)]
     pub return_hidden_states: bool,
 
+    /// Whether to return the prompt token ids the engine tokenized the messages into.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_prompt_token_ids: Option<bool>,
+
+    /// Whether to return the native generation metadata (token logprobs, finish reason).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_meta_info: Option<bool>,
+
+    /// Whether to return the expert ids selected by every MoE layer.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_routed_experts: Option<bool>,
+
+    /// If return routed experts, the first prompt position to capture. Experts are
+    /// returned for `[routed_experts_start_len, seqlen - 1)` and the value must be
+    /// in `[0, prompt_tokens]`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub routed_experts_start_len: Option<u32>,
+
+    /// Whether to return the per-request prefix cache hit breakdown.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_cached_tokens_details: Option<bool>,
+
+    /// Whether to return the multimodal processor output tensors.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_processor_outputs: Option<bool>,
+
     /// Random seed for sampling for deterministic outputs
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sampling_seed: Option<u64>,
@@ -796,4 +822,82 @@ pub struct ChatStreamChoice {
     pub finish_reason: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub matched_stop: Option<Value>,
+}
+
+#[cfg(test)]
+mod chat_extension_tests {
+    use super::*;
+
+    #[test]
+    fn test_chat_request_forwards_sglang_return_flags() {
+        let json = r#"{
+            "model": "qwen",
+            "messages": [{"role": "user", "content": "hi"}],
+            "logprobs": true,
+            "return_prompt_token_ids": true,
+            "return_meta_info": true,
+            "return_routed_experts": true,
+            "routed_experts_start_len": 0,
+            "return_cached_tokens_details": true,
+            "return_processor_outputs": true
+        }"#;
+        let req: ChatCompletionRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.return_prompt_token_ids, Some(true));
+        assert_eq!(req.return_meta_info, Some(true));
+        assert_eq!(req.return_routed_experts, Some(true));
+        assert_eq!(req.routed_experts_start_len, Some(0));
+        assert_eq!(req.return_cached_tokens_details, Some(true));
+        assert_eq!(req.return_processor_outputs, Some(true));
+
+        let forwarded = serde_json::to_value(&req).unwrap();
+        for field in [
+            "return_prompt_token_ids",
+            "return_meta_info",
+            "return_routed_experts",
+            "return_cached_tokens_details",
+            "return_processor_outputs",
+        ] {
+            assert_eq!(forwarded[field], serde_json::json!(true), "{field}");
+        }
+        assert_eq!(forwarded["routed_experts_start_len"], serde_json::json!(0));
+    }
+
+    #[test]
+    fn test_chat_request_omits_unset_return_flags() {
+        let json = r#"{"model": "qwen", "messages": [{"role": "user", "content": "hi"}]}"#;
+        let req: ChatCompletionRequest = serde_json::from_str(json).unwrap();
+        let forwarded = serde_json::to_value(&req).unwrap();
+        for field in [
+            "return_prompt_token_ids",
+            "return_meta_info",
+            "return_routed_experts",
+            "routed_experts_start_len",
+            "return_cached_tokens_details",
+            "return_processor_outputs",
+        ] {
+            assert!(forwarded.get(field).is_none(), "{field}");
+        }
+    }
+
+    #[test]
+    fn test_chat_request_accepts_object_tool_call_arguments() {
+        let json = r#"{
+            "model": "qwen",
+            "messages": [
+                {"role": "user", "content": "2+2?"},
+                {"role": "assistant", "tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "calculator", "arguments": {"expression": "2+2"}}
+                }]},
+                {"role": "tool", "tool_call_id": "call_1", "content": "4"}
+            ]
+        }"#;
+        let req: ChatCompletionRequest = serde_json::from_str(json).unwrap();
+        let forwarded = serde_json::to_value(&req).unwrap();
+        assert_eq!(
+            forwarded["messages"][1]["tool_calls"][0]["function"]["arguments"],
+            serde_json::json!(r#"{"expression":"2+2"}"#)
+        );
+    }
 }

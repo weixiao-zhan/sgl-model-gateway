@@ -412,8 +412,24 @@ pub enum FunctionCall {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FunctionCallResponse {
     pub name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_tool_arguments")]
     pub arguments: Option<String>, // JSON string
+}
+
+/// Accept both tool argument encodings SGLang accepts: the OpenAI JSON string and the
+/// object form, which is normalized to its compact JSON string so that the field type
+/// stays a string for every consumer of this struct.
+fn deserialize_tool_arguments<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    match Option::<Value>::deserialize(deserializer)? {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(arguments)) => Ok(Some(arguments)),
+        Some(value) => serde_json::to_string(&value)
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+    }
 }
 
 // ============================================================================
@@ -521,4 +537,33 @@ pub enum InputIds {
 pub enum LoRAPath {
     Single(Option<String>),
     Batch(Vec<Option<String>>),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tool_arguments_accept_json_string() {
+        let call: FunctionCallResponse =
+            serde_json::from_str(r#"{"name": "calculator", "arguments": "{\"a\": 1}"}"#).unwrap();
+        assert_eq!(call.arguments.as_deref(), Some(r#"{"a": 1}"#));
+    }
+
+    #[test]
+    fn test_tool_arguments_accept_object() {
+        let call: FunctionCallResponse =
+            serde_json::from_str(r#"{"name": "calculator", "arguments": {"a": 1}}"#).unwrap();
+        assert_eq!(call.arguments.as_deref(), Some(r#"{"a":1}"#));
+    }
+
+    #[test]
+    fn test_tool_arguments_missing_or_null() {
+        let missing: FunctionCallResponse =
+            serde_json::from_str(r#"{"name": "calculator"}"#).unwrap();
+        assert_eq!(missing.arguments, None);
+        let null: FunctionCallResponse =
+            serde_json::from_str(r#"{"name": "calculator", "arguments": null}"#).unwrap();
+        assert_eq!(null.arguments, None);
+    }
 }

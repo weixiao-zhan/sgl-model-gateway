@@ -309,6 +309,7 @@ async fn generate_handler(
 ) -> Response {
     let config = config.read().await;
     let worker_id = format!("worker-{}", config.port);
+    record_request_for_port(config.port, &payload);
 
     if should_fail(&config).await {
         return (
@@ -459,12 +460,17 @@ async fn generate_handler(
             [("x-worker-id", worker_id)],
             Json(json!({
                 "text": "This is a mock response.",
+                "prompt_token_ids": [1, 2, 3],
+                "processor_outputs": {
+                    "pixel_values": {"__tensor__": true, "dtype": "float32", "shape": [1, 2], "data": "AAAAAA=="}
+                },
                 "meta_info": {
                     "prompt_tokens": 10,
                     "completion_tokens": 5,
                     "completion_tokens_wo_jump_forward": 5,
                     "input_token_logprobs": null,
-                    "output_token_logprobs": null,
+                    "output_token_logprobs": [[-0.5, 42, null]],
+                    "routed_experts": "AAECAw==",
                     "first_token_latency": config.response_delay_ms as f64 / 1000.0,
                     "time_to_first_token": config.response_delay_ms as f64 / 1000.0,
                     "time_per_output_token": 0.01,
@@ -484,6 +490,7 @@ async fn chat_completions_handler(
     Json(payload): Json<serde_json::Value>,
 ) -> Response {
     let config = config.read().await;
+    record_request_for_port(config.port, &payload);
 
     if should_fail(&config).await {
         return (
@@ -621,8 +628,19 @@ async fn chat_completions_handler(
                     "role": "assistant",
                     "content": "This is a mock chat response."
                 },
-                "finish_reason": "stop"
+                "finish_reason": "stop",
+                "prompt_token_ids": [1, 2, 3],
+                "meta_info": {
+                    "output_token_logprobs": [[-0.5, 42, null]],
+                    "finish_reason": {"type": "stop"}
+                }
             }],
+            "sglext": {
+                "routed_experts": "AAECAw==",
+                "processor_outputs": {
+                    "pixel_values": {"__tensor__": true, "dtype": "float32", "shape": [1, 2], "data": "AAAAAA=="}
+                }
+            },
             "usage": {
                 "prompt_tokens": 10,
                 "completion_tokens": 5,
@@ -1698,6 +1716,28 @@ fn mark_stream_completed(port: u16) {
     if let Some(state) = map.get_mut(&port) {
         state.completed = true;
     }
+}
+
+// --- Payloads received per worker port (for tests) ---
+static REQUEST_LOG: OnceLock<Mutex<HashMap<u16, Vec<serde_json::Value>>>> = OnceLock::new();
+
+fn get_request_log() -> &'static Mutex<HashMap<u16, Vec<serde_json::Value>>> {
+    REQUEST_LOG.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn record_request_for_port(port: u16, payload: &serde_json::Value) {
+    let mut map = get_request_log().lock().unwrap();
+    map.entry(port).or_default().push(payload.clone());
+}
+
+pub fn recorded_requests(port: u16) -> Vec<serde_json::Value> {
+    let map = get_request_log().lock().unwrap();
+    map.get(&port).cloned().unwrap_or_default()
+}
+
+pub fn clear_recorded_requests(port: u16) {
+    let mut map = get_request_log().lock().unwrap();
+    map.remove(&port);
 }
 
 // --- Simple in-memory response store per worker port (for tests) ---

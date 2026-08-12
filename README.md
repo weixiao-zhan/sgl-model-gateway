@@ -1,5 +1,8 @@
 # SGLang Model Gateway
 
+> Fork used by slim. It carries the SGLang request fields the upstream gateway drops;
+> see [FORK.md](FORK.md) for the upstream pins, the changes and the resync procedure.
+
 High-performance model routing control and data plane for large-scale LLM deployments. The gateway orchestrates fleets of workers, balances traffic across HTTP and gRPC backends, and exposes OpenAI-compatible APIs with pluggable history storage and tool integrations—while remaining deeply optimized for the SGLang serving runtime.
 
 ## Overview

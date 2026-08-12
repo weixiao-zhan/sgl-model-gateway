@@ -90,6 +90,24 @@ pub struct GenerateRequest {
     #[serde(default)]
     pub return_hidden_states: bool,
 
+    /// Whether to return the expert ids selected by every MoE layer.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_routed_experts: Option<bool>,
+
+    /// If return routed experts, the first prompt position to capture. Experts are
+    /// returned for `[routed_experts_start_len, seqlen - 1)` and the value must be
+    /// in `[0, prompt_tokens]`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub routed_experts_start_len: Option<u32>,
+
+    /// Whether to return the prompt token ids without computing logprobs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_prompt_token_ids: Option<bool>,
+
+    /// Whether to return the multimodal processor output tensors.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_processor_outputs: Option<bool>,
+
     /// The modalities of the image data [image, multi-images, video]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub modalities: Option<Vec<String>>,
@@ -294,4 +312,67 @@ pub enum GenerateFinishReason {
     Stop,
     #[serde(untagged)]
     Other(Value),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_request_forwards_sglang_return_flags() {
+        let json = r#"{
+            "input_ids": [1, 2, 3],
+            "return_logprob": true,
+            "return_routed_experts": true,
+            "routed_experts_start_len": 0,
+            "return_prompt_token_ids": true,
+            "return_processor_outputs": true
+        }"#;
+        let req: GenerateRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.return_routed_experts, Some(true));
+        assert_eq!(req.routed_experts_start_len, Some(0));
+        assert_eq!(req.return_prompt_token_ids, Some(true));
+        assert_eq!(req.return_processor_outputs, Some(true));
+
+        let forwarded = serde_json::to_value(&req).unwrap();
+        assert_eq!(forwarded["return_routed_experts"], serde_json::json!(true));
+        assert_eq!(forwarded["routed_experts_start_len"], serde_json::json!(0));
+        assert_eq!(
+            forwarded["return_prompt_token_ids"],
+            serde_json::json!(true)
+        );
+        assert_eq!(
+            forwarded["return_processor_outputs"],
+            serde_json::json!(true)
+        );
+    }
+
+    #[test]
+    fn test_generate_request_omits_unset_return_flags() {
+        let json = r#"{"text": "hello"}"#;
+        let req: GenerateRequest = serde_json::from_str(json).unwrap();
+        let forwarded = serde_json::to_value(&req).unwrap();
+        assert!(forwarded.get("return_routed_experts").is_none());
+        assert!(forwarded.get("routed_experts_start_len").is_none());
+        assert!(forwarded.get("return_prompt_token_ids").is_none());
+        assert!(forwarded.get("return_processor_outputs").is_none());
+    }
+
+    #[test]
+    fn test_generate_request_forwards_processor_output_image_data() {
+        let json = r#"{
+            "input_ids": [1, 2, 3],
+            "image_data": [{
+                "format": "processor_output",
+                "pixel_values": {"__tensor__": true, "dtype": "float32", "shape": [1, 4], "data": "AAAA"}
+            }]
+        }"#;
+        let req: GenerateRequest = serde_json::from_str(json).unwrap();
+        let forwarded = serde_json::to_value(&req).unwrap();
+        assert_eq!(forwarded["image_data"][0]["format"], "processor_output");
+        assert_eq!(
+            forwarded["image_data"][0]["pixel_values"]["dtype"],
+            "float32"
+        );
+    }
 }

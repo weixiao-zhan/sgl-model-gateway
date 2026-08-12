@@ -1,6 +1,9 @@
 [workspace]
-members = ["bindings/python"]
+members = ["bindings/python", "crates/openai-protocol"]
 exclude = ["bindings/golang", "examples"]
+
+[patch.crates-io]
+openai-protocol = { path = "crates/openai-protocol" }
 
 [package]
 name = "sgl-model-gateway"

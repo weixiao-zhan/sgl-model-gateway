@@ -4,13 +4,16 @@ build-backend = "maturin"
 
 [project]
 name = "sglang-router"
-version = "0.3.2"
-description = "High-performance Rust-based load balancer for SGLang with multiple routing algorithms and prefill-decode disaggregation support"
+version = "0.3.2.post1"
+description = "Forked High-performance Rust-based load balancer for SGLang with multiple routing algorithms and prefill-decode disaggregation support; for RL training"
 authors = [
     {name = "Simo Lin", email = "linsimo.mark@gmail.com"},
     {name = "Chang Su", email = "mckvtl@gmail.com"},
     {name = "Keyang Ru", email = "rukeyang@gmail.com"},
     {name = "Byron Hsu", email = "byronhsu1230@gmail.com"}
+]
+maintainers = [
+    {name = "Weixiao Zhan", email = "45820168+weixiao-zhan@users.noreply.github.com"}
 ]
 requires-python = ">=3.8"
 readme = "../../README.md"
