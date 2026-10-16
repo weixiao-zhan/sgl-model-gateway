@@ -264,9 +264,9 @@ pub struct ChatCompletionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<Tool>>,
 
-    /// An integer between 0 and 20 specifying the number of most likely tokens to return
+    /// The number of most likely tokens to return at each position. OpenAI caps it at 20;
+    /// SGLang does not, so the gateway leaves the bound to the worker.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[validate(range(min = 0, max = 20))]
     pub top_logprobs: Option<u32>,
 
     /// An alternative to sampling with temperature

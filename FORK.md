@@ -52,6 +52,9 @@ Added, matching `ChatCompletionRequest` in SGLang 0.5.15.post1:
 Every field is `Option<T>` with `skip_serializing_if`, so a worker only ever receives the flags the
 client actually sent. That keeps non-SGLang backends (vLLM) untouched.
 
+`top_logprobs` drops the OpenAI cap of 20. Score centering can now read
+the sampler's top-K over chat completions.
+
 ### `FunctionCallResponse::arguments`
 
 Assistant tool calls may now carry `arguments` as a JSON object as well as the OpenAI JSON string.
