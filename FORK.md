@@ -1,6 +1,6 @@
 # slim fork of the SGL Model Gateway
 
-Source of the wheel `sglang_router==0.3.2.post1` that slim installs. The version tracks the
+Source of the wheel `sglang_router==0.3.2.post2` that slim installs. The version tracks the
 upstream gateway version, and the `.post<n>` counter is this fork's patch revision.
 
 ## Provenance
@@ -94,7 +94,7 @@ Publishing a version:
 3. slim installs the release asset by URL:
 
 ```
-https://github.com/weixiao-zhan/sgl-model-gateway/releases/download/v0.3.2.post1/sglang_router-0.3.2.post1-cp38-abi3-manylinux_2_28_x86_64.whl
+https://github.com/weixiao-zhan/sgl-model-gateway/releases/download/v0.3.2.post2/sglang_router-0.3.2.post2-cp38-abi3-manylinux_2_28_x86_64.whl
 ```
 
 ## Resync with upstream
